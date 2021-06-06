@@ -44,6 +44,7 @@
 #include <string.h>
 #include <linux/types.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <infiniband/verbs_api.h>
 
@@ -83,6 +84,35 @@ struct ibv_gid_entry {
 	uint32_t gid_type; /* enum ibv_gid_type */
 	uint32_t ndev_ifindex;
 };
+
+enum {
+	VERBS_LOG_LEVEL_NONE,
+	VERBS_LOG_ERR,
+	VERBS_LOG_WARN,
+	VERBS_LOG_INFO,
+	VERBS_LOG_DEBUG,
+};
+
+#define verbs_log(ctx, level, format, arg...)                                         \
+do {                                                                                  \
+	if ((level) <= (ctx)->log_level) {                                            \
+		int tmp = errno;                                                      \
+		fprintf((ctx)->log_fp, "%s:%d: " format, __func__, __LINE__, ##arg);  \
+		errno = tmp;                                                          \
+	}                                                                             \
+} while (0)
+
+#define verbs_debug(ctx, format, arg...) \
+	verbs_log(ctx, VERBS_LOG_DEBUG, format, ##arg)
+
+#define verbs_info(ctx, format, arg...) \
+	verbs_log(ctx, VERBS_LOG_INFO, format, ##arg)
+
+#define verbs_warn(ctx, format, arg...) \
+	verbs_log(ctx, VERBS_LOG_WARN, format, ##arg)
+
+#define verbs_err(ctx, format, arg...) \
+	verbs_log(ctx, VERBS_LOG_ERR, format, ##arg)
 
 #define vext_field_avail(type, fld, sz) (offsetof(type, fld) < (sz))
 
@@ -2077,6 +2107,8 @@ struct ibv_values_ex {
 
 struct verbs_context {
 	/*  "grows up" - new fields go here */
+	uint32_t log_level;
+	FILE *log_fp;
 	int (*query_port)(struct ibv_context *context, uint8_t port_num,
 			  struct ibv_port_attr *port_attr,
 			  size_t port_attr_len);
